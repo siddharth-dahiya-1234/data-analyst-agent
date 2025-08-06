@@ -32,76 +32,75 @@ Follow these instructions to set up and run the project locally.
 
 ### 1. Clone the Repository
 
-```bash
+`
 git clone <your-github-repository-url>
 cd data-analyst-agent
-2. Set Up the Environment
+`​
+
+### 2. Set Up the Environment
 Create and activate a Python virtual environment.
 
 Windows (Command Prompt):
-
-DOS
-
+`bash
 python -m venv venv
 venv\Scripts\activate
+`
 macOS / Linux:
 
-Bash
-
+`DOS
 python3 -m venv venv
 source venv/bin/activate
-3. Install Dependencies
+`
+
+### 3. Install Dependencies
 Install all the required libraries using the requirements.txt file.
 
-Bash
-
+`bash
 pip install -r requirements.txt
 4. Configure Your API Key
 You must add your Google Gemini API key to the project.
+`
+
+### 4. Configure Your API Key
+You must add your Google Gemini API key to the project.
 
 Open the agent.py file.
-
 Find this line:
 
-Python
+`Python
+os.environ["GOOGLE_API_KEY"] = "API_KEY"
+Replace the key with your own.
+`
 
-os.environ["GOOGLE_API_KEY"] = "AIzaSyDzODRcVEuSxD9D2Ze-Y8jsJldsUPQ7-v0"
-Replace the key with your own if you are using a different one.
-
-5. Run the Application
+### 5. Run the Application
 Start the FastAPI server using uvicorn.
 
-Bash
-
+`bash
 uvicorn main:app --reload
 The API will now be running at http://127.0.0.1:8000.
+`
 
-🛠️ Usage
+### 🛠️ Usage
 Interact with the agent by sending a POST request to the /api/ endpoint.
 
 Endpoint: POST /api/
-
 Body: multipart/form-data
 
 The request must contain a single key named file.
-
 The value for this key should be a text file (e.g., question.txt) containing the natural language prompt for the agent.
 
 Example curl Request
 Create a file named question.txt with your data analysis task.
-
 Run the following command in your terminal:
-
-Bash
-
+`bash
 curl -X POST \
   -F "file=@question.txt" \
   [http://127.0.0.1:8000/api/](http://127.0.0.1:8000/api/)
+`
+
 Example Success Response
 A successful response will be a JSON object containing the agent's final answer.
-
-JSON
-
+`json
 {
   "output": [
     5,
@@ -110,5 +109,7 @@ JSON
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg..."
   ]
 }
+`
+
 📄 License
 This project is licensed under the MIT License. See the LICENSE file for details.
