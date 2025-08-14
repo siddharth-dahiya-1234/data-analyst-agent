@@ -1,8 +1,8 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from agent import DataAnalystAgent
+import json # Make sure json is imported
 
 app = FastAPI()
-agent = DataAnalystAgent()
 
 @app.get("/")
 def health_check():
@@ -11,6 +11,9 @@ def health_check():
 @app.post("/api/")
 async def analyze_data(request: Request):
     try:
+        # The agent is now created safely inside the function. (CHANGE #1)
+        agent = DataAnalystAgent()
+
         # Get all the form data from the incoming request.
         form_data = await request.form()
         
@@ -26,12 +29,9 @@ async def analyze_data(request: Request):
         question_bytes = await the_file.read()
         text_query = question_bytes.decode("utf-8")
         
-        # Call your solver function with the content of the file.
-        result_str = solve_film_query(text_query)
-        
-        # Return the final parsed output.
-        return {"output": json.loads(result_str)}
+        # Correctly call the agent's run method and return the response. (CHANGE #2)
+        response = agent.run(text_query)
+        return response
 
     except Exception as e:
-        # Return any errors in a clean format.
         raise HTTPException(status_code=500, detail=str(e))
