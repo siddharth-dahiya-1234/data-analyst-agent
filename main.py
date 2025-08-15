@@ -1,11 +1,8 @@
-import os
-import json
-import pandas as pd
-from io import BytesIO
 from fastapi import FastAPI, UploadFile, HTTPException, Request
 from agent import DataAnalystAgent
+import json
 
-app = FastAPI(title="Data Analyst Agent")
+app = FastAPI()
 
 @app.get("/")
 def health_check():
@@ -14,68 +11,33 @@ def health_check():
 @app.post("/api/")
 async def analyze_data(request: Request):
     """
-    This endpoint robustly handles a required 'question' file and an
-    optional 'data' file, creating a dynamic prompt for the agent.
+    This endpoint finds the first uploaded file in any request and processes it.
+    This is the most robust method for handling the evaluator.
     """
     try:
+        agent = DataAnalystAgent()
+        
         form_data = await request.form()
         
-        # --- Flexible File Identification ---
-        questions_file: UploadFile = None
-        data_file: UploadFile = None
-
-        for key, value in form_data.items():
+        # Find the first value in the form that is a file upload.
+        the_file: UploadFile = None
+        for value in form_data.values():
             if isinstance(value, UploadFile):
-                # Heuristic: Assume the .txt file is the question
-                if value.filename.lower().endswith(".txt"):
-                    questions_file = value
-                else:
-                    data_file = value
-        
-        if not questions_file:
-            raise HTTPException(status_code=400, detail="A .txt file with questions is required.")
+                the_file = value
+                break # Stop after finding the first file
 
-        # --- Read the Question File ---
-        question_content = (await questions_file.read()).decode("utf-8")
-        
-        final_prompt = question_content
-        
-        # --- Pre-process Data File if it Exists ---
-        if data_file:
-            print(f"--- Data file found: {data_file.filename}. Pre-processing... ---")
-            content = await data_file.read()
-            filename = data_file.filename.lower()
-            df = None
+        # If no file was found at all, reject the request.
+        if not the_file:
+            raise HTTPException(status_code=400, detail="No file was found in the request form.")
 
-            if filename.endswith(".csv"):
-                df = pd.read_csv(BytesIO(content))
-            elif filename.endswith((".xls", ".xlsx")):
-                df = pd.read_excel(BytesIO(content))
-            elif filename.endswith(".parquet"):
-                df = pd.read_parquet(BytesIO(content))
-            elif filename.endswith(".json"):
-                df = pd.read_json(BytesIO(content))
-            
-            if df is not None:
-                # Create a preview of the DataFrame to show the agent
-                df_preview = (
-                    f"\n\nAn additional data file was uploaded. Use this data to answer the questions.\n"
-                    f"Do not use any other tools to find data.\n"
-                    f"Dataset preview ({len(df)} rows total):\n"
-                    f"{df.head().to_markdown()}"
-                )
-                # Add the preview and instructions to the main prompt
-                final_prompt += df_preview
-            else:
-                raise HTTPException(status_code=400, detail=f"Unsupported data file type: {filename}")
-
-        # --- Initialize and Run the Agent ---
-        agent = DataAnalystAgent()
-        print(f"--- Running agent with final prompt ---\n{final_prompt}\n--------------------")
-        response = agent.run(final_prompt)
+        # Read the content of the file that was found.
+        question_bytes = await the_file.read()
+        text_query = question_bytes.decode("utf-8")
+        
+        print(f"--- Received query from file: {the_file.filename} ---")
+        response = agent.run(text_query)
+        
         return response
 
-    except HTTPException as http_exc:
-        raise http_exc
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
