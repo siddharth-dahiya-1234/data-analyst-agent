@@ -11,39 +11,41 @@ def health_check():
 @app.post("/api/")
 async def analyze_data(request: Request):
     """
-    This endpoint robustly handles file uploads, form text fields,
-    and raw text bodies to be compatible with any evaluator.
+    This endpoint robustly handles file uploads and raw text bodies
+    to be compatible with any evaluator request format.
     """
     try:
+        # Agent is created safely inside the function to prevent startup crashes.
         agent = DataAnalystAgent()
+        
         content_type = request.headers.get("content-type", "")
         question_bytes = b''
 
-        # Case 1: Handle multipart/form-data (most likely)
+        # Case 1: Handle multipart/form-data
         if "multipart/form-data" in content_type:
             form_data = await request.form()
-            
-            # Look for a file first
             uploaded_files = [value for value in form_data.values() if isinstance(value, UploadFile)]
             if uploaded_files:
+                # Read the bytes from the file object
                 question_bytes = await uploaded_files[0].read()
             else:
-                # If no file, look for the first text field and use its value
+                # Fallback for text fields in a form
                 if form_data.values():
-                    first_value = next(iter(form_data.values()))
-                    question_bytes = str(first_value).encode("utf-8")
-
-        # Case 2: Fallback to handle raw text body
+                    question_bytes = str(next(iter(form_data.values()))).encode("utf-8")
+        
+        # Case 2: Fallback for raw text body
         else:
             question_bytes = await request.body()
 
-        # If we still have no data, then it's a bad request
         if not question_bytes:
             raise HTTPException(status_code=400, detail="No file or text content was found in the request.")
 
+        # Decode the bytes into the final text query string
         text_query = question_bytes.decode("utf-8")
         
+        # Correctly call the agent with the TEXT, not the file object
         response = agent.run(text_query)
+        
         return response
 
     except HTTPException as http_exc:
