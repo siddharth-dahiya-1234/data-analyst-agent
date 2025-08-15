@@ -106,6 +106,6 @@ class DataAnalystAgent:
             try:
                 return {"output": json.loads(final_answer_str)}
             except (json.JSONDecodeError, TypeError):
-                return {"output", final_answer_str}
+                return {"output": final_answer_str}
         except Exception as e:
             return {"error": str(e)}
