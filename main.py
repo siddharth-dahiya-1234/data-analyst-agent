@@ -1,63 +1,81 @@
+import os
 import json
+import pandas as pd
+from io import BytesIO
 from fastapi import FastAPI, UploadFile, HTTPException, Request
 from agent import DataAnalystAgent
 
-# 1. Initialize the FastAPI Application
-# This creates our web server.
-app = FastAPI()
+app = FastAPI(title="Data Analyst Agent")
 
-# 2. Create a Health Check Endpoint
-# This is a simple endpoint at the root URL (/) that Render can use to check
-# if your service is live and running. It's good practice.
 @app.get("/")
 def health_check():
     return {"status": "ok"}
 
-# 3. Create the Main API Endpoint
-# This is the core of our API. It listens for POST requests at the /api/ path.
 @app.post("/api/")
 async def analyze_data(request: Request):
     """
-    This endpoint robustly handles file uploads and raw text bodies
-    to be compatible with any evaluator.
+    This endpoint robustly handles a required 'question' file and an
+    optional 'data' file, creating a dynamic prompt for the agent.
     """
     try:
-        # 4. Initialize the Agent Safely ("Lazy Loading")
-        # We create the agent *inside* the request function. This is critical for
-        # stability on Render, preventing the server from crashing on startup.
+        form_data = await request.form()
+        
+        # --- Flexible File Identification ---
+        questions_file: UploadFile = None
+        data_file: UploadFile = None
+
+        for key, value in form_data.items():
+            if isinstance(value, UploadFile):
+                # Heuristic: Assume the .txt file is the question
+                if value.filename.lower().endswith(".txt"):
+                    questions_file = value
+                else:
+                    data_file = value
+        
+        if not questions_file:
+            raise HTTPException(status_code=400, detail="A .txt file with questions is required.")
+
+        # --- Read the Question File ---
+        question_content = (await questions_file.read()).decode("utf-8")
+        
+        final_prompt = question_content
+        
+        # --- Pre-process Data File if it Exists ---
+        if data_file:
+            print(f"--- Data file found: {data_file.filename}. Pre-processing... ---")
+            content = await data_file.read()
+            filename = data_file.filename.lower()
+            df = None
+
+            if filename.endswith(".csv"):
+                df = pd.read_csv(BytesIO(content))
+            elif filename.endswith((".xls", ".xlsx")):
+                df = pd.read_excel(BytesIO(content))
+            elif filename.endswith(".parquet"):
+                df = pd.read_parquet(BytesIO(content))
+            elif filename.endswith(".json"):
+                df = pd.read_json(BytesIO(content))
+            
+            if df is not None:
+                # Create a preview of the DataFrame to show the agent
+                df_preview = (
+                    f"\n\nAn additional data file was uploaded. Use this data to answer the questions.\n"
+                    f"Do not use any other tools to find data.\n"
+                    f"Dataset preview ({len(df)} rows total):\n"
+                    f"{df.head().to_markdown()}"
+                )
+                # Add the preview and instructions to the main prompt
+                final_prompt += df_preview
+            else:
+                raise HTTPException(status_code=400, detail=f"Unsupported data file type: {filename}")
+
+        # --- Initialize and Run the Agent ---
         agent = DataAnalystAgent()
-
-        # 5. Robustly Read the Incoming Data
-        # This logic handles any request format the evaluator might use.
-        content_type = request.headers.get("content-type", "")
-        question_bytes = b''
-
-        # Case A: Handle standard file uploads
-        if "multipart/form-data" in content_type:
-            form_data = await request.form()
-            uploaded_files = [value for value in form_data.values() if isinstance(value, UploadFile)]
-            if uploaded_files:
-                # Read the content of the first file found
-                question_bytes = await uploaded_files[0].read()
-        
-        # Case B: Fallback to handle raw text bodies
-        else:
-            question_bytes = await request.body()
-
-        # If we still have no data, the request was empty.
-        if not question_bytes:
-            raise HTTPException(status_code=400, detail="No content was found in the request.")
-
-        # 6. Extract the Text and Call the Agent
-        # We decode the raw bytes into a normal text string.
-        text_query = question_bytes.decode("utf-8")
-        
-        # We call the agent with the text_query string, NOT the file object.
-        response = agent.run(text_query)
-        
-        # 7. Return the Final Answer
+        print(f"--- Running agent with final prompt ---\n{final_prompt}\n--------------------")
+        response = agent.run(final_prompt)
         return response
 
+    except HTTPException as http_exc:
+        raise http_exc
     except Exception as e:
-        # This will catch any unexpected errors and return them cleanly.
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
