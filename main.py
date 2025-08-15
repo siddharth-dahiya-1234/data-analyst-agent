@@ -1,6 +1,6 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from fastapi import FastAPI, UploadFile, HTTPException, Request
 from agent import DataAnalystAgent
-import json # Make sure json is imported
+import json
 
 app = FastAPI()
 
@@ -10,28 +10,37 @@ def health_check():
 
 @app.post("/api/")
 async def analyze_data(request: Request):
+    """
+    This endpoint robustly handles both 'multipart/form-data' (file uploads)
+    and 'text/plain' (raw text) request bodies.
+    """
     try:
-        # The agent is now created safely inside the function. (CHANGE #1)
         agent = DataAnalystAgent()
+        question_bytes = b''
+        content_type = request.headers.get("content-type", "")
 
-        # Get all the form data from the incoming request.
-        form_data = await request.form()
-        
-        # Find the uploaded file among the form values.
-        uploaded_files = [value for value in form_data.values() if isinstance(value, UploadFile)]
+        # Check if the request is a file upload
+        if "multipart/form-data" in content_type:
+            form_data = await request.form()
+            uploaded_files = [value for value in form_data.values() if isinstance(value, UploadFile)]
+            if uploaded_files:
+                question_bytes = await uploaded_files[0].read()
+        else:
+            # If not a file upload, assume it's a raw text body
+            question_bytes = await request.body()
 
-        # Check if a file was actually sent.
-        if not uploaded_files:
-            raise HTTPException(status_code=400, detail="No file was found in the request.")
+        # If we still have no data, then it's a bad request.
+        if not question_bytes:
+            raise HTTPException(status_code=400, detail="No file or text content was found in the request.")
 
-        # Process the first file found.
-        the_file = uploaded_files[0]
-        question_bytes = await the_file.read()
         text_query = question_bytes.decode("utf-8")
         
-        # Correctly call the agent's run method and return the response. (CHANGE #2)
         response = agent.run(text_query)
         return response
 
+    except HTTPException as http_exc:
+        # Re-raise HTTPExceptions so FastAPI can handle them correctly.
+        raise http_exc
     except Exception as e:
+        # Catch any other unexpected server errors.
         raise HTTPException(status_code=500, detail=str(e))
