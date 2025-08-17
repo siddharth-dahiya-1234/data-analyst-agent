@@ -18,3 +18,4 @@ pyarrow
 boto3
 typing
 logging
+networkx
