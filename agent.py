@@ -108,7 +108,7 @@ class DataAnalystAgent:
         """
         Guarantees:
         - Returns clean JSON if possible (removes ```json ``` if present)
-        - Falls back to original string if JSON parsing fails (unchanged behavior)
+        - Falls back to original string if JSON parsing fails
         - Never blocks responses that worked before
         """
         try:
@@ -116,27 +116,27 @@ class DataAnalystAgent:
             response = self.agent_executor.invoke({"input": query})
             print("CHECK1:", "VALID" if isinstance(response, dict) else "INVALID")
             final_answer_str = response.get("output", "{}")
-            print("CHECK2:", "VALID" if isinstance(response.get("output", "{}"), (dict, list, str)) else "INVALID")
-        
-            # Step 1: Remove ```json ``` if present (without breaking non-JSON responses)
+            print("CHECK2:", "VALID" if isinstance(final_answer_str, str) else "INVALID")
+
+            # Step 1: Remove ```json ``` if present
             clean_str = re.sub(r'^```(json)?\n?|```$', '', final_answer_str).strip()
             print("CHECK3:", "CLEAN" if not re.search(r'```', clean_str) else "DIRTY")
-        
-            # Step 2: Try parsing JSON
+
+            # Step 2: Try parsing the cleaned string
             try:
                 parsed = json.loads(clean_str)
-                return parsed  # Returns raw dict/list if valid JSON
+                return parsed  # Success: Returns raw dict/list if valid JSON
             except json.JSONDecodeError:
-                # Fallback 1: Try parsing original string (pre-markdown cleaning)
+                # Fallback 1: Try parsing the original, uncleaned string
                 try:
                     return json.loads(final_answer_str)
                 except json.JSONDecodeError:
-                    # Fallback 2: Return raw string (unchanged behavior)
-                    print("CHECK4:", "JSON" if isinstance(parsed, (dict, list)) else "STRING")
-                    return final_answer_str if final_answer_str != "{}" else {}
-                
+                    # Fallback 2: If all parsing fails, log it and return the raw string
+                    print("CHECK4: All JSON parsing failed. Returning raw string.")
+                    return final_answer_str if final_answer_str else {}
+
         except Exception as e:
-            # Preserve existing error handling exactly
+            # Final safety net to catch any other unexpected errors
             return {
                 "error": f"Agent execution failed: {str(e)}",
                 "type": type(e).__name__,
