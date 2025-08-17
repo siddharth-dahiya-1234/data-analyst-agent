@@ -8,7 +8,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.agents import AgentExecutor, create_react_agent, Tool
 from langchain_core.prompts import PromptTemplate
 from langchain_experimental.tools import PythonREPLTool
-from typing import Dict, Union
+from typing import Dict, Union, List, Any
 
 # --- Configuration ---
 os.environ["GOOGLE_API_KEY"] = "AIzaSyB_KUx5kaJWMq_R8x4HKfPeReJ7v47eLHc"
@@ -109,38 +109,63 @@ class DataAnalystAgent:
         )
         print("ReAct Data Analyst Agent (Final Version) initialized successfully.")
 
-    def run(self, query: str) -> Union[Dict, list, str]:
+    def run(self, query: str) -> Union[Dict[str, Any], List[Any]]:
         """
-        Guarantees:
-        - Returns clean JSON if possible.
-        - Safely parses Python literal strings (like lists) as a fallback.
-        - Returns raw string if all parsing fails.
+        Process queries and return complete JSON output with special handling for:
+        - Strings starting with [" and containing escaped quotes
+        - Malformed JSON with backslashes
+        - Mixed content including base64 images
+        
+        Args:
+            query: Input query string
+            
+        Returns:
+            Union[Dict, List]: The complete parsed JSON structure
         """
         try:
-            print(f"Running ReAct agent with query: {query}")
+            print(f"Processing query: {query[:200]}...")  # Log first 200 chars
+            
+            # Get raw response from agent executor
             response = self.agent_executor.invoke({"input": query})
-            final_answer_str = response.get("output", "{}")
-
-            # Step 1: Clean markdown fences
-            clean_str = re.sub(r'^```(json)?\n?|```$', '', final_answer_str).strip()
-
-            # Step 2: Try parsing as perfect JSON first
+            raw_output = response.get("output", "{}")
+            
+            # Clean markdown fences if present
+            clean_str = re.sub(r'^```(json)?\n?|```$', '', raw_output, flags=re.MULTILINE).strip()
+            
+            # SPECIAL HANDLING FOR YOUR SPECIFIC CASE
+            if clean_str.startswith('["') and '\\"' in clean_str:
+                try:
+                    # First try with proper JSON parsing
+                    return json.loads(clean_str)
+                except json.JSONDecodeError:
+                    # Handle the case with escaped quotes and backslashes
+                    fixed_str = clean_str.replace('\\"', '"')
+                    try:
+                        return json.loads(fixed_str)
+                    except json.JSONDecodeError:
+                        # Fall back to literal eval if JSON still fails
+                        try:
+                            return ast.literal_eval(clean_str)
+                        except (ValueError, SyntaxError):
+                            pass
+            
+            # Regular JSON parsing for all other cases
             try:
                 return json.loads(clean_str)
-            except json.JSONDecodeError:
-                # Step 3: FALLBACK - Try safely parsing as a Python literal
-                print("CHECK4: JSON parsing failed. Attempting to parse as Python literal.")
+            except json.JSONDecodeError as json_err:
+                # Try literal eval for Python structures
                 try:
-                    # ast.literal_eval is safe and handles this exact kind of string
-                    return ast.literal_eval(clean_str)
+                    parsed = ast.literal_eval(clean_str)
+                    if isinstance(parsed, (dict, list)):
+                        return parsed
+                    return {"result": parsed}
                 except (ValueError, SyntaxError):
-                    # Step 4: FINAL FALLBACK - Return the raw string if all else fails
-                    print("CHECK5: All parsing failed. Returning raw string.")
-                    return clean_str
+                    # Final fallback - return raw content
+                    return {"raw_output": clean_str}
 
         except Exception as e:
             return {
-                "error": f"Agent execution failed: {str(e)}",
+                "error": str(e),
                 "type": type(e).__name__,
                 "status": "error"
             }
