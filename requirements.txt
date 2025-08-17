@@ -18,4 +18,3 @@ boto3
 typing
 logging
 networkx
-ast
