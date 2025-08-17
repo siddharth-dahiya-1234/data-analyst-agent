@@ -1,11 +1,13 @@
 import os
 import json
+import re
 import pandas as pd
 from io import StringIO
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.agents import AgentExecutor, create_react_agent, Tool
 from langchain_core.prompts import PromptTemplate
 from langchain_experimental.tools import PythonREPLTool
+from typing import Dict, Union
 
 # --- Configuration ---
 os.environ["GOOGLE_API_KEY"] = "AIzaSyDzODRcVEuSxD9D2Ze-Y8jsJldsUPQ7-v0"
@@ -98,7 +100,18 @@ class DataAnalystAgent:
         )
         print("ReAct Data Analyst Agent (Final Version) initialized successfully.")
 
-    def run(self, query: str):
+def run(self, query: str) -> Union[Dict, str]:
+    """
+    Execute the ReAct agent with proper error handling and response formatting
+    
+    Args:
+        query: Input query string
+        
+    Returns:
+        Dict: Parsed JSON response if successful
+        str: Raw response if JSON parsing fails
+        Dict: Error information if execution fails
+    """
     try:
         print(f"Running ReAct agent with query: {query}")
         response = self.agent_executor.invoke({"input": query})
@@ -108,12 +121,19 @@ class DataAnalystAgent:
         clean_str = re.sub(r"```(json)?\n?|```", "", final_answer_str).strip()
         
         # Parse and return the clean JSON directly
-        return json.loads(clean_str)
-    
-    except json.JSONDecodeError:
-        # If parsing fails, return the original string (or empty dict if preferred)
-        return final_answer_str if final_answer_str != "{}" else {}
-    
+        try:
+            return json.loads(clean_str)
+        except json.JSONDecodeError:
+            # If parsing fails, return the original string (or empty dict if preferred)
+            return final_answer_str if final_answer_str != "{}" else {}
+
     except Exception as e:
-        # For other errors, return them as a dict to maintain some structure
-        return {"error": str(e)}
+        # Enhanced error logging and handling
+        error_msg = f"Agent execution failed: {str(e)}"
+        print(error_msg)
+        return {
+            "error": error_msg,
+            "type": type(e).__name__,
+            "query": query,
+            "status": "error"
+        }
