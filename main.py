@@ -59,6 +59,7 @@ async def analyze_data(request: Request):
             
             # Ensure response is valid JSON
             return JSONResponse(content=result)
+            print("FINAL_CHECK:", "VALID" if isinstance(result, (dict, list)) else "CHECK_AGENT")
             
         except json.JSONDecodeError as e:
             logger.error("Agent returned invalid JSON: %s", str(e))
