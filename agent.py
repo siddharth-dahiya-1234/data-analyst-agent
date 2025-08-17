@@ -98,14 +98,22 @@ class DataAnalystAgent:
         )
         print("ReAct Data Analyst Agent (Final Version) initialized successfully.")
 
-    def run(self, query: str) -> dict:
-        try:
-            print(f"Running ReAct agent with query: {query}")
-            response = self.agent_executor.invoke({"input": query})
-            final_answer_str = response.get("output", "No output found.")
-            try:
-                return {"output": json.loads(final_answer_str)}
-            except (json.JSONDecodeError, TypeError):
-                return {"output": final_answer_str}
-        except Exception as e:
-            return {"error": str(e)}
+    def run(self, query: str):
+    try:
+        print(f"Running ReAct agent with query: {query}")
+        response = self.agent_executor.invoke({"input": query})
+        final_answer_str = response.get("output", "{}")
+        
+        # Clean markdown fences and strip whitespace
+        clean_str = re.sub(r"```(json)?\n?|```", "", final_answer_str).strip()
+        
+        # Parse and return the clean JSON directly
+        return json.loads(clean_str)
+    
+    except json.JSONDecodeError:
+        # If parsing fails, return the original string (or empty dict if preferred)
+        return final_answer_str if final_answer_str != "{}" else {}
+    
+    except Exception as e:
+        # For other errors, return them as a dict to maintain some structure
+        return {"error": str(e)}
