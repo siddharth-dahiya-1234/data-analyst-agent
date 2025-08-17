@@ -31,7 +31,10 @@ def scrape_website_table(url: str) -> str:
         if 'rank' in str(df['Rank'].iloc[0]).lower():
             df = df.iloc[1:].reset_index(drop=True)
         print(f"Found and cleaned the correct table with shape: {df.shape}")
-        return df.to_json(orient='records')
+        # Save the cleaned DataFrame to a local file.
+        df.to_json("data.json", orient='records', indent=2)
+        # Return a success message, NOT the data itself.
+        return "Successfully scraped the data and saved it to 'data.json'."
     except Exception as e:
         return f"Error: An exception occurred during scraping. Details: {e}"
 
@@ -40,13 +43,13 @@ def scrape_website_table(url: str) -> str:
 smart_scrape_tool = Tool(
     name="Smart_Table_Scraper",
     func=scrape_website_table,
-    description="Use this tool to get data from a URL. It scrapes a page's main data table and returns it as a clean JSON string."
+    description="Use this tool first to get data from a URL. It scrapes a page's main data table, saves it to a file named 'data.json', and returns a success message."
 )
 
 python_tool = Tool(
     name="Python_REPL",
     func=PythonREPLTool().run,
-    description="A Python shell. Use this to execute python code for data analysis, calculations, or plotting. It can also be used to save data to files and read from them."
+    description="A Python shell. Use this to execute python code for data analysis. It is ideal for reading a local file (like 'data.json') into a pandas DataFrame and then performing calculations and plotting."
 )
 
 # --- ReAct Agent Prompt (Final, With Professional Strategy) ---
