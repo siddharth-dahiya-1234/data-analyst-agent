@@ -1,7 +1,6 @@
 fastapi
 uvicorn[standard]
 python-multipart
-openai
 langchain
 pandas
 matplotlib
@@ -19,3 +18,4 @@ boto3
 typing
 logging
 networkx
+ast
