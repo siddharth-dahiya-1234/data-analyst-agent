@@ -55,6 +55,7 @@ async def analyze_data(request: Request):
         agent = DataAnalystAgent()
         try:
             result = agent.run(text_content)
+            logger.info("Agent run successful. Sending direct JSON response.")
             
             # Ensure response is valid JSON
             if isinstance(result, dict):
