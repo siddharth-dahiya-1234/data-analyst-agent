@@ -16,3 +16,5 @@ html5lib
 duckdb
 pyarrow
 boto3
+typing
+logging
