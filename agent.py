@@ -105,12 +105,12 @@ class DataAnalystAgent:
         print("ReAct Data Analyst Agent (Final Version) initialized successfully.")
 
     def run(self, query: str) -> Union[Dict, list, str]:
-    """
-    Guarantees:
-    - Returns clean JSON if possible (removes ```json ``` if present)
-    - Falls back to original string if JSON parsing fails (unchanged behavior)
-    - Never blocks responses that worked before
-    """
+        """
+        Guarantees:
+        - Returns clean JSON if possible (removes ```json ``` if present)
+        - Falls back to original string if JSON parsing fails (unchanged behavior)
+        - Never blocks responses that worked before
+        """
         try:
             print(f"Running ReAct agent with query: {query}")
             response = self.agent_executor.invoke({"input": query})
