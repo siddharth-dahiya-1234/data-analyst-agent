@@ -79,7 +79,8 @@ Observation: the result of the action
 ... (this Thought/Action/Action Input/Observation can repeat N times)
 Thought: I now know the final answer
 A VERY IMPORTANT AND CRITICAL FIX HERE YOU HAVE TO RETURN ONLY The raw JSON array or object DO NOT WRAP IT AT ALL THIS WILL FAIL THE EVALUATION STEP
-Final Answer: [ The raw JSON array or object ]
+Final Answer: ```json
+{final_answer}
 
 Begin!
 
@@ -104,40 +105,18 @@ class DataAnalystAgent:
         )
         print("ReAct Data Analyst Agent (Final Version) initialized successfully.")
 
-    def run(self, query: str) -> Union[Dict, str]:
-        """
-        Execute the ReAct agent with proper error handling and response formatting
+    def run(self, query: str):
+    try:
+        print(f"Running ReAct agent with query: {query}")
+        response = self.agent_executor.invoke({"input": query})
+        final_answer_str = response.get("output", "{}")
+        
+        # Extract ONLY the content between ```json ``` markers
+        json_match = re.search(r'```json\n?(.*?)\n?```', final_answer_str, re.DOTALL)
+        clean_str = json_match.group(1).strip() if json_match else final_answer_str.strip()
+        
+        # Return PURE JSON (no wrapping)
+        return json.loads(clean_str)
     
-        Args:
-            query: Input query string
-        
-        Returns:
-            Dict: Parsed JSON response if successful
-            str: Raw response if JSON parsing fails
-            Dict: Error information if execution fails
-        """
-        try:
-            print(f"Running ReAct agent with query: {query}")
-            response = self.agent_executor.invoke({"input": query})
-            final_answer_str = response.get("output", "{}")
-        
-            # Clean markdown fences and strip whitespace
-            clean_str = re.sub(r"```(json)?\n?|```", "", final_answer_str).strip()
-        
-            # Parse and return the clean JSON directly
-            try:
-                return json.loads(clean_str)
-            except json.JSONDecodeError:
-                # If parsing fails, return the original string (or empty dict if preferred)
-                return final_answer_str if final_answer_str != "{}" else {}
-
-        except Exception as e:
-            # Enhanced error logging and handling
-            error_msg = f"Agent execution failed: {str(e)}"
-            print(error_msg)
-            return {
-                "error": error_msg,
-                "type": type(e).__name__,
-                "query": query,
-                "status": "error"
-            }
+    except Exception as e:
+        return {"error": str(e)}
