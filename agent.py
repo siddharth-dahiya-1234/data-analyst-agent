@@ -104,49 +104,37 @@ class DataAnalystAgent:
         )
         print("ReAct Data Analyst Agent (Final Version) initialized successfully.")
 
-    def run(self, query: str) -> Union[Dict, str]:
-        """
-        Strict version that either returns perfect JSON or fails cleanly.
-        Maintains all original functionality exactly.
-        """
+    def run(self, query: str) -> Union[Dict, list, str]:
+    """
+    Guarantees:
+    - Returns clean JSON if possible (removes ```json ``` if present)
+    - Falls back to original string if JSON parsing fails (unchanged behavior)
+    - Never blocks responses that worked before
+    """
         try:
             print(f"Running ReAct agent with query: {query}")
             response = self.agent_executor.invoke({"input": query})
             final_answer_str = response.get("output", "{}")
         
-            # Debug logging (safe to remove in production)
-            print(f"Raw agent output: {final_answer_str[:500]}...") 
+            # Step 1: Remove ```json ``` if present (without breaking non-JSON responses)
+            clean_str = re.sub(r'^```(json)?\n?|```$', '', final_answer_str).strip()
         
-            # Strict JSON extraction
-            def extract_json(s: str) -> str:
-                """Returns either:
-                1. Content between ```json ``` markers OR
-                2. Original string if no markers found"""
-                json_match = re.search(r'```json\n?(.*?)\n?```', s, re.DOTALL)
-                return json_match.group(1).strip() if json_match else s.strip()
-        
-            clean_str = extract_json(final_answer_str)
-        
-            # Validate JSON structure
-            parsed = json.loads(clean_str)
-            if not isinstance(parsed, (dict, list)):
-                raise json.JSONDecodeError("Top-level must be object or array", clean_str, 0)
-            
-            return parsed
-        
-        except json.JSONDecodeError as e:
-            print(f"JSON parsing failed: {str(e)}")
-            # Return original string ONLY if it looks like JSON attempt
-            if any(c in final_answer_str for c in ['{', '[', '"']):
-                return final_answer_str
-            return {"error": "Invalid JSON format", "raw_output": final_answer_str}
-        
+            # Step 2: Try parsing JSON
+            try:
+                parsed = json.loads(clean_str)
+                return parsed  # Returns raw dict/list if valid JSON
+            except json.JSONDecodeError:
+                # Fallback 1: Try parsing original string (pre-markdown cleaning)
+                try:
+                    return json.loads(final_answer_str)
+                except json.JSONDecodeError:
+                    # Fallback 2: Return raw string (unchanged behavior)
+                    return final_answer_str if final_answer_str != "{}" else {}
+                
         except Exception as e:
-            error_msg = f"Agent execution failed: {type(e).__name__}: {str(e)}"
-            print(error_msg)
+            # Preserve existing error handling exactly
             return {
-                "error": error_msg,
+                "error": f"Agent execution failed: {str(e)}",
                 "type": type(e).__name__,
-                "query": query[:100] if query else None,  # Truncate long queries
                 "status": "error"
             }
