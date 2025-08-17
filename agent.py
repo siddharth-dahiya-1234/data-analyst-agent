@@ -1,4 +1,5 @@
 import os
+import ast
 import json
 import re
 import pandas as pd
@@ -79,6 +80,10 @@ Observation: the result of the action
 ... (this Thought/Action/Action Input/Observation can repeat N times)
 Thought: I now know the final answer
 A VERY IMPORTANT AND CRITICAL FIX HERE YOU HAVE TO RETURN ONLY The raw JSON array or object DO NOT WRAP IT AT ALL THIS WILL FAIL THE EVALUATION STEP
+
+**CRITICAL OUTPUT FORMATTING RULE:**
+When using the `Python_REPL` tool to generate the final answer, you MUST import the `json` library and use `json.dumps()` to format your output. This ensures the output is a valid JSON string that the system can parse.
+**Example:** `import json; my_data = [2, "Avatar", -1.0, "base64_string..."]; print(json.dumps(my_data))`
 Final Answer: [ The raw JSON array or object ]
 
 Begin!
@@ -107,36 +112,33 @@ class DataAnalystAgent:
     def run(self, query: str) -> Union[Dict, list, str]:
         """
         Guarantees:
-        - Returns clean JSON if possible (removes ```json ``` if present)
-        - Falls back to original string if JSON parsing fails
-        - Never blocks responses that worked before
+        - Returns clean JSON if possible.
+        - Safely parses Python literal strings (like lists) as a fallback.
+        - Returns raw string if all parsing fails.
         """
         try:
             print(f"Running ReAct agent with query: {query}")
             response = self.agent_executor.invoke({"input": query})
-            print("CHECK1:", "VALID" if isinstance(response, dict) else "INVALID")
             final_answer_str = response.get("output", "{}")
-            print("CHECK2:", "VALID" if isinstance(final_answer_str, str) else "INVALID")
 
-            # Step 1: Remove ```json ``` if present
+            # Step 1: Clean markdown fences
             clean_str = re.sub(r'^```(json)?\n?|```$', '', final_answer_str).strip()
-            print("CHECK3:", "CLEAN" if not re.search(r'```', clean_str) else "DIRTY")
 
-            # Step 2: Try parsing the cleaned string
+            # Step 2: Try parsing as perfect JSON first
             try:
-                parsed = json.loads(clean_str)
-                return parsed  # Success: Returns raw dict/list if valid JSON
+                return json.loads(clean_str)
             except json.JSONDecodeError:
-                # Fallback 1: Try parsing the original, uncleaned string
+                # Step 3: FALLBACK - Try safely parsing as a Python literal
+                print("CHECK4: JSON parsing failed. Attempting to parse as Python literal.")
                 try:
-                    return json.loads(final_answer_str)
-                except json.JSONDecodeError:
-                    # Fallback 2: If all parsing fails, log it and return the raw string
-                    print("CHECK4: All JSON parsing failed. Returning raw string.")
-                    return final_answer_str if final_answer_str else {}
+                    # ast.literal_eval is safe and handles this exact kind of string
+                    return ast.literal_eval(clean_str)
+                except (ValueError, SyntaxError):
+                    # Step 4: FINAL FALLBACK - Return the raw string if all else fails
+                    print("CHECK5: All parsing failed. Returning raw string.")
+                    return clean_str
 
         except Exception as e:
-            # Final safety net to catch any other unexpected errors
             return {
                 "error": f"Agent execution failed: {str(e)}",
                 "type": type(e).__name__,
