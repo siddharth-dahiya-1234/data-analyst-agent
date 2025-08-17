@@ -106,17 +106,17 @@ class DataAnalystAgent:
         print("ReAct Data Analyst Agent (Final Version) initialized successfully.")
 
     def run(self, query: str):
-    try:
-        print(f"Running ReAct agent with query: {query}")
-        response = self.agent_executor.invoke({"input": query})
-        final_answer_str = response.get("output", "{}")
+        try:
+            print(f"Running ReAct agent with query: {query}")
+            response = self.agent_executor.invoke({"input": query})
+            final_answer_str = response.get("output", "{}")
         
-        # Extract ONLY the content between ```json ``` markers
-        json_match = re.search(r'```json\n?(.*?)\n?```', final_answer_str, re.DOTALL)
-        clean_str = json_match.group(1).strip() if json_match else final_answer_str.strip()
+            # Extract ONLY the content between ```json ``` markers
+            json_match = re.search(r'```json\n?(.*?)\n?```', final_answer_str, re.DOTALL)
+            clean_str = json_match.group(1).strip() if json_match else final_answer_str.strip()
         
-        # Return PURE JSON (no wrapping)
-        return json.loads(clean_str)
+            # Return PURE JSON (no wrapping)
+            return json.loads(clean_str)
     
-    except Exception as e:
-        return {"error": str(e)}
+        except Exception as e:
+            return {"error": str(e)}
