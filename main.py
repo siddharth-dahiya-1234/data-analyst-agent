@@ -58,9 +58,7 @@ async def analyze_data(request: Request):
             logger.info("Agent run successful. Sending direct JSON response.")
             
             # Ensure response is valid JSON
-            if isinstance(result, dict):
-                return JSONResponse(result)
-            return JSONResponse({"result": result})
+            return JSONResponse(content=result)
             
         except json.JSONDecodeError as e:
             logger.error("Agent returned invalid JSON: %s", str(e))
