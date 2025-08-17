@@ -13,10 +13,12 @@ async def analyze_data(request: Request):
     try:
         agent = DataAnalystAgent()
         
+        # Get form data
         form_data = await request.form()
         if not form_data:
             raise HTTPException(status_code=400, detail="No form data received")
         
+        # Find the first valid file
         the_file: UploadFile = None
         for key, value in form_data.items():
             if isinstance(value, UploadFile) and value.filename:
@@ -26,26 +28,29 @@ async def analyze_data(request: Request):
         if not the_file:
             raise HTTPException(status_code=400, detail="No valid file was found in the request form")
         
-        # SINGLE READ OPERATION
-        question_bytes = await the_file.read()
-        if not question_bytes:
-            raise HTTPException(status_code=400, detail="Uploaded file is empty")
-
+        # Single file read operation
         try:
+            question_bytes = await the_file.read()
+            if not question_bytes:
+                raise HTTPException(status_code=400, detail="Uploaded file is empty")
+            
             text_query = question_bytes.decode("utf-8").strip()
             if not text_query:
                 raise HTTPException(status_code=400, detail="File contains no text content")
+                
         except UnicodeDecodeError:
             raise HTTPException(status_code=400, detail="File encoding not supported (must be UTF-8)")
 
         print(f"--- Received query from file: {the_file.filename} ---")
         
+        # Single agent execution with proper error handling
         try:
             response = agent.run(text_query)
             return {"result": response}
+            
         except json.JSONDecodeError as e:
             raise HTTPException(status_code=400, detail=f"Invalid JSON format inside agent: {str(e)}")
-
+            
     except HTTPException:
         raise
     except Exception as e:
