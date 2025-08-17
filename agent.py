@@ -10,7 +10,7 @@ from langchain_experimental.tools import PythonREPLTool
 from typing import Dict, Union
 
 # --- Configuration ---
-os.environ["GOOGLE_API_KEY"] = "AIzaSyDzODRcVEuSxD9D2Ze-Y8jsJldsUPQ7-v0"
+os.environ["GOOGLE_API_KEY"] = "AIzaSyDTRio0n2qIuQmp0Uk4yUx4wDijVvPLxdw"
 
 # --- Specialized Tools ---
 
