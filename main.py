@@ -26,8 +26,10 @@ async def analyze_data(request: Request):
         if not the_file:
             raise HTTPException(status_code=400, detail="No valid file was found in the request form")
         
-        if the_file.size == 0:
+        question_bytes = await the_file.read()
+        if not question_bytes:
             raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
 
         try:
             question_bytes = await the_file.read()
@@ -40,11 +42,14 @@ async def analyze_data(request: Request):
         print(f"--- Received query from file: {the_file.filename} ---")
         response = agent.run(text_query)
         
-        return response
+        return {"result": response}
 
     except HTTPException:
         raise
+    try:
+        response = agent.run(text_query)
     except json.JSONDecodeError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid JSON format: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid JSON format inside agent: {str(e)}")
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
