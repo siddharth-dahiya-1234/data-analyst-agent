@@ -75,7 +75,8 @@ Action Input: the input to the action
 Observation: the result of the action
 ... (this Thought/Action/Action Input/Observation can repeat N times)
 Thought: I now know the final answer
-Final Answer: the final answer to the original input question. This must be a JSON array of the final answers.
+A VERY IMPORTANT AND CRITICAL FIX HERE YOU HAVE TO RETURN ONLY The raw JSON array or object DO NOT WRAP IT AT ALL THIS WILL FAIL THE EVALUATION STEP
+Final Answer: [ The raw JSON array or object ]
 
 Begin!
 
