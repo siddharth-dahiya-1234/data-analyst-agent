@@ -133,7 +133,7 @@ class DataAnalystAgent:
                 except json.JSONDecodeError:
                     # Fallback 2: Return raw string (unchanged behavior)
                     return final_answer_str if final_answer_str != "{}" else {}
-                    print("CHECK4:", "JSON" if isinstance(parsed, (dict, list)) else "STRING")
+            print("CHECK4:", "JSON" if isinstance(parsed, (dict, list)) else "STRING")
                 
         except Exception as e:
             # Preserve existing error handling exactly
