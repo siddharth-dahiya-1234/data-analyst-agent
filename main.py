@@ -1,3 +1,13 @@
+from fastapi import FastAPI, UploadFile, HTTPException, Request
+from agent import DataAnalystAgent
+import json
+
+app = FastAPI()
+
+@app.get("/")
+def health_check():
+    return {"status": "ok"}
+
 @app.post("/api/")
 async def analyze_data(request: Request):
     try:
