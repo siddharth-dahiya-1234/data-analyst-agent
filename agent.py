@@ -11,7 +11,7 @@ from langchain_experimental.tools import PythonREPLTool
 from typing import Dict, Union, List, Any
 
 # --- Configuration ---
-os.environ["GOOGLE_API_KEY"] = "AIzaSyB_KUx5kaJWMq_R8x4HKfPeReJ7v47eLHc"
+os.environ["GOOGLE_API_KEY"] = ""
 
 # --- Specialized Tools ---
 
